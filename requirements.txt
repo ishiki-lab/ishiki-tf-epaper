@@ -1,0 +1,5 @@
+tinkerforge
+pillow==8.0.0
+zeroconf
+netifaces
+schedule
