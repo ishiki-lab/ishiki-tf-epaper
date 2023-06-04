@@ -6,15 +6,15 @@ PORT = 4223
 WIDTH = 296 # pixel width
 HEIGHT = 128 # pixel height
 INTERVAL = 60 # update interval in seconds
+DEBUG = True
+VERBOSE = True
+READING_INTERVAL = 10.0
+LOGO_SCALING = 0.4
+PIXEL_SPACING = 5 # PIXEL_SPACING in pixels
 
-debug = True
-verbose = True
 #send_to_influx = True
 #columns_number = 1
-reading_interval = 10.0
 logo = "./img/Architectural_Association_School_of_Architecture_logo.png"
-logo_scaling = 0.4
-spacing = 5 # spacing in pixels
 
 from tinkerforge.ip_connection import IPConnection
 from tinkerforge.bricklet_ambient_light_v2 import BrickletAmbientLightV2
@@ -26,7 +26,7 @@ from tinkerforge.bricklet_sound_pressure_level import BrickletSoundPressureLevel
 from tinkerforge.bricklet_motion_detector_v2 import BrickletMotionDetectorV2
 from tinkerforge.bricklet_humidity_v2 import BrickletHumidityV2
 
-from time import sleep
+from time import sleep, tzname, daylight, gmtime, strftime, localtime
 from os.path import join, splitext
 from os import listdir
 import math, time, datetime
@@ -271,7 +271,7 @@ deviceIdentifiersList = [
 
 deviceIDs = [i[0] for i in deviceIdentifiersList]
 deviceIDs = [item for item in deviceIdentifiersDict]
-if debug:
+if DEBUG:
     print(deviceIDs)
     for dID in deviceIDs:
         print(deviceIdentifiersDict[dID])
@@ -314,31 +314,36 @@ class tf_App():
         i = 0
         sensor_text = ""
         for sensor in self.sensors:
-            if debug:
+            # Turn off status LED
+            sensor.set_status_led_config(sensor.STATUS_LED_CONFIG_OFF)
+            if DEBUG:
                 print("Sensor type: "+str(sensor.DEVICE_IDENTIFIER))
                 quantity = getattr(sensor, deviceIdentifiersDict[sensor.DEVICE_IDENTIFIER]["value_func"])()+1
                 v = eval(deviceIdentifiersDict[sensor.DEVICE_IDENTIFIER]["correction"] % quantity)
                 unit = deviceIdentifiersDict[sensor.DEVICE_IDENTIFIER]["unit"]
-                sensor_text += "%s: %.1f %s\n" % (deviceIdentifiersDict[sensor.DEVICE_IDENTIFIER]["name"], v, unit)
-                if debug:
-                    print(quantity, deviceIdentifiersDict[sensor.DEVICE_IDENTIFIER]["correction"] % quantity)
+            sensor_text += "%s: %.1f %s\n" % (deviceIdentifiersDict[sensor.DEVICE_IDENTIFIER]["name"], v, unit)
+            if DEBUG:
+                print(quantity, deviceIdentifiersDict[sensor.DEVICE_IDENTIFIER]["correction"] % quantity)
 
         # Get timestamp
         ts = time.time()
         #print(time.time(), prev_time)
-        datestr = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M')
+        #datestr = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M')
+        datestr = strftime("%Y-%m-%d %H:%M %Z", localtime())
         print(datestr)
 
         hostname = gethostname()
 
         for display in self.displays:
+            # Turn off status LED
+            display.set_status_led_config(display.STATUS_LED_CONFIG_OFF)
             if display.DEVICE_IDENTIFIER == 2146:
                 image = Image.open(logo)
 
                 # Resize image to WIDTH x HEIGHT
                 hpercent = (HEIGHT/float(image.size[1]))
-                wsize = int((float(image.size[0])*float(hpercent))*logo_scaling)
-                img = image.resize((wsize,int(HEIGHT*logo_scaling)))
+                wsize = int((float(image.size[0])*float(hpercent))*LOGO_SCALING)
+                img = image.resize((wsize,int(HEIGHT*LOGO_SCALING)))
 
                 # Paste scaled image to new image with WIDTH x HEIGHT canvas size
                 image = Image.new(img.mode, (WIDTH, HEIGHT), (0x00, 0x00, 0x00))
@@ -348,22 +353,22 @@ class tf_App():
 
                 row = 1
                 # Write date and time
-                draw.multiline_text((int(HEIGHT*logo_scaling+spacing), spacing/2), "%s - %s" % (hostname, datestr), fill=(0x99, 0x99, 0x99), font=font_small)
+                draw.multiline_text((int(HEIGHT*LOGO_SCALING+PIXEL_SPACING), PIXEL_SPACING/2), "%s - %s" % (hostname, datestr), fill=(0x99, 0x99, 0x99), font=font_small)
 
                 # Write IP addresses
                 adapters = netifaces.interfaces()
                 addresses = get_ipaddresses(adapters)
-                if debug:
+                if DEBUG:
                     print(addresses)
                 for i in range(len(addresses)):
-                    if debug:
+                    if DEBUG:
                         print(addresses[i])
                     address = '%s - %s' % (addresses[i][0], addresses[i][2])
-                    draw.multiline_text((int(HEIGHT*logo_scaling+spacing), spacing/2+row*(spacing+12)), address, fill=(0x00, 0x99, 0x99), font=font_small)
+                    draw.multiline_text((int(HEIGHT*LOGO_SCALING+PIXEL_SPACING), PIXEL_SPACING/2+row*(PIXEL_SPACING+12)), address, fill=(0x00, 0x99, 0x99), font=font_small)
                     row += 1
 
                 # Write sensors values
-                draw.multiline_text((spacing, int(HEIGHT*logo_scaling)), sensor_text, fill=(255, 255, 255), font=font_large)
+                draw.multiline_text((PIXEL_SPACING, int(HEIGHT*LOGO_SCALING)), sensor_text, fill=(255, 255, 255), font=font_large)
 
                 # Get black/white pixels from image and write them to the Bricklet buffer
                 pixels_bw  = bool_list_from_pil_image(image, WIDTH, HEIGHT, (0x00, 0x00, 0x00))
@@ -391,7 +396,7 @@ class tf_App():
                 #            }
                 #        }
                 #    ]
-                #    if verbose:
+                #    if VERBOSE:
                 #        print(json_body)
                 #    self.influx_client.write_points(json_body)
             i += 1
@@ -417,7 +422,7 @@ class tf_App():
 
             sleep(2)
 
-        if debug:
+        if DEBUG:
             print(tfIDs)
 
         # Connect to InfluxDB server
@@ -453,7 +458,7 @@ class tf_App():
                         quantity = getattr(bricklet, deviceIdentifiersDict[tf[1]]["value_func"])()+1
                         v = eval(deviceIdentifiersDict[tf[1]]["correction"] % quantity)
                         unit = deviceIdentifiersDict[tf[1]]["unit"]
-                        if debug:
+                        if DEBUG:
                             print(quantity, deviceIdentifiersDict[tf[1]]["correction"] % quantity)
                             print(tf[0],getIdentifier(tf), deviceIdentifiersDict[tf[1]], v, unit)
 
