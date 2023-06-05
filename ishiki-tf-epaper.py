@@ -9,8 +9,10 @@ INTERVAL = 60 # update interval in seconds
 DEBUG = True
 VERBOSE = True
 READING_INTERVAL = 10.0
-LOGO_SCALING = 0.4
-PIXEL_SPACING = 5 # PIXEL_SPACING in pixels
+LOGO_SCALING = 0.35
+PIXEL_SPACING = 3 # PIXEL_SPACING in pixels
+FONT_LARGE_SIZE = 14
+FONT_SMALL_SIZE = 10
 
 #send_to_influx = True
 #columns_number = 1
@@ -37,8 +39,8 @@ import schedule
 import socket
 from socket import gethostname
 
-font_large = ImageFont.truetype('font/DejaVuSans.ttf', 16)
-font_small = ImageFont.truetype('font/DejaVuSans.ttf', 12)
+font_large = ImageFont.truetype('font/DejaVuSans.ttf', FONT_LARGE_SIZE)
+font_small = ImageFont.truetype('font/DejaVuSans.ttf', FONT_SMALL_SIZE)
 
 # convert PIL image to matching color bool list
 def bool_list_from_pil_image(image, width=296, height=128, color=(0, 0, 0)):
